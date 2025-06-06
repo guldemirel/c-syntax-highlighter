@@ -1,0 +1,65 @@
+import numpy as np
+
+class PNController:
+    
+    def __init__(self, c_x, c_y, f_x, f_y, N, V, c, delta_t):
+        self.c_x = c_x
+        self.c_y = c_y
+        self.f_x = f_x
+        self.f_y = f_y
+        self.N = N
+        self.V = V
+        self.c = c
+        self.delta_t = delta_t
+    
+    def calculate_los_vector(self, u_t, v_t, u_t_minus1, v_t_minus1):
+        r_t = np.array([(u_t - self.c_x) / self.f_x, (v_t - self.c_y) / self.f_y, 1])  
+        r_t_minus1 = np.array([(u_t_minus1 - self.c_x) / self.f_x, (v_t_minus1 - self.c_y) / self.f_y, 1])  
+        return r_t, r_t_minus1
+
+    def calculate_rotation_rate(self, r_t, r_t_minus1):
+        dot_product = np.dot(r_t, r_t_minus1)
+        norm_r_t = np.linalg.norm(r_t)
+        norm_r_t_minus1 = np.linalg.norm(r_t_minus1)
+
+        phi_omega = np.arccos(dot_product / (norm_r_t * norm_r_t_minus1))
+        phi_dot_omega = phi_omega / self.delta_t  # Dönüş hızı
+        return phi_dot_omega
+
+    def calculate_acceleration_direction(self, r_t, r_t_minus1):
+        proj_r_t_on_r_t_minus1 = np.dot(r_t, r_t_minus1) / np.linalg.norm(r_t_minus1)**2 * r_t_minus1
+        n = r_t - proj_r_t_on_r_t_minus1
+        n_unit = n / np.linalg.norm(n)
+        return n_unit
+
+    def calculate_acceleration(self, phi_dot_omega, n_unit):
+        a_LOS = self.N * self.V * self.c * phi_dot_omega * n_unit
+        return a_LOS
+
+    def compute_acceleration(self, u_t, v_t, u_t_minus1, v_t_minus1):
+        r_t, r_t_minus1 = self.calculate_los_vector(u_t, v_t, u_t_minus1, v_t_minus1)
+        phi_dot_omega = self.calculate_rotation_rate(r_t, r_t_minus1)
+        n_unit = self.calculate_acceleration_direction(r_t, r_t_minus1)
+        a_LOS = self.calculate_acceleration(phi_dot_omega, n_unit)
+        return a_LOS
+
+
+u_t_minus1 = 100  # u(t-1)
+v_t_minus1 = 200  # v(t-1)
+u_t = 110         # u(t)
+v_t = 210         # v(t)
+c_x = 320         # Kamera merkezi 
+c_y = 240         # Kamera merkezi 
+f_x = 635         # Kamera odak uzunluğu ? 
+f_y = 567         # Kamera odak uzunluğu ?
+
+
+N = 1.0  
+V = 1.0  
+c = 1.0  
+delta_t = 0.1  
+
+pn_controller = PNController(c_x, c_y, f_x, f_y, N, V, c, delta_t)
+a_LOS = pn_controller.compute_acceleration(u_t, v_t, u_t_minus1, v_t_minus1)
+
+print("Hızlanma Vektörü (a_LOS):", a_LOS)
